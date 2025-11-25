@@ -39,6 +39,10 @@ function App() {
       setMemo("");
   };
 
+  const handleDelete = (id: number) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+  };
+
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
@@ -91,6 +95,9 @@ function App() {
                 <td>{e.category}</td>
                 <td style={{ textAlign: "right" }}>{e.amount.toLocaleString()}円</td>
                 <td>{e.memo}</td>
+                <td>
+                  <button onClick={() => handleDelete(e.id)}>削除</button>
+                </td>
               </tr>
             ))}
           </tbody>
