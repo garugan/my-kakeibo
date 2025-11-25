@@ -8,7 +8,7 @@ type Expense = {
   memo: string;
 };
 
-// 🔵 ここで localStorage から初期値を読む
+// localStorage から初期値読み込み
 const loadInitialExpenses = (): Expense[] => {
   const savedData = localStorage.getItem("expenses");
   if (!savedData) return [];
@@ -17,14 +17,11 @@ const loadInitialExpenses = (): Expense[] => {
     const parsed = JSON.parse(savedData);
     if (Array.isArray(parsed)) {
       return parsed as Expense[];
-    } else {
-      console.warn("expenses の形式が配列ではありません:", parsed);
-      return [];
     }
   } catch (error) {
     console.error("expenses の JSON パースに失敗しました:", error);
-    return [];
   }
+  return [];
 };
 
 function App() {
@@ -33,18 +30,19 @@ function App() {
   const [amount, setAmount] = useState<number | "">("");
   const [memo, setMemo] = useState("");
 
-  // 🔵 初期値として localStorage の内容を読み込む
   const [expenses, setExpenses] = useState<Expense[]>(() =>
     loadInitialExpenses()
   );
 
-  // ✅ expenses が変わるたびに保存
+  // 🔍 カテゴリフィルタ用
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+
+  // 変更があったら localStorage に保存
   useEffect(() => {
     localStorage.setItem("expenses", JSON.stringify(expenses));
   }, [expenses]);
 
   const handleAdd = () => {
-    // 入力チェック
     if (!date || !category || amount === "") return;
 
     const newExpense: Expense = {
@@ -67,16 +65,28 @@ function App() {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+  // 🔍 フィルタ済みの配列を作成
+  const filteredExpenses =
+    filterCategory === "all"
+      ? expenses
+      : expenses.filter((e) => e.category === filterCategory);
+
+  // 🔢 合計はフィルタ後のデータで計算
+  const total = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  // セレクトボックスに出すカテゴリ一覧（重複排除）
+  const categoryOptions = Array.from(
+    new Set(expenses.map((e) => e.category))
+  );
 
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto", padding: 16 }}>
+    <div className="container">
       <h1>シンプル家計簿</h1>
 
       <h2>支出の入力</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="form-grid">
         <label>
-          日付：
+          日付
           <input
             type="date"
             value={date}
@@ -85,17 +95,19 @@ function App() {
         </label>
 
         <label>
-          カテゴリ：
-          <input
-            type="text"
-            placeholder="食費・交通・趣味など"
+          カテゴリ
+          <select
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          />
+            onChange={(e) => setCategory(e.target.value)}>
+            <option value="">選択してください</option>
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </label>
 
         <label>
-          金額：
+          金額
           <input
             type="number"
             value={amount}
@@ -106,22 +118,41 @@ function App() {
         </label>
 
         <label>
-          メモ：
+          メモ
           <input
             type="text"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
           />
         </label>
+      </div>
 
-        <button onClick={handleAdd}>追加する</button>
+      <button onClick={handleAdd}>追加する</button>
+
+      {/* 🔍 カテゴリフィルタ UI */}
+      <div style={{ marginTop: 24 }}>
+        <label>
+          カテゴリで絞り込み：
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            style={{ marginLeft: 8, padding: 4 }}
+          >
+            <option value="all">すべて</option>
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <h2 style={{ marginTop: 24 }}>
         一覧(合計：{total.toLocaleString()}円)
       </h2>
-      {expenses.length === 0 ? (
-        <p>まだ登録がありません。</p>
+      {filteredExpenses.length === 0 ? (
+        <p>該当する支出がありません。</p>
       ) : (
         <table border={1} cellPadding={4} style={{ width: "100%" }}>
           <thead>
@@ -133,8 +164,9 @@ function App() {
               <th></th>
             </tr>
           </thead>
+
           <tbody>
-            {expenses.map((e) => (
+            {filteredExpenses.map((e) => (
               <tr key={e.id}>
                 <td>{e.date}</td>
                 <td>{e.category}</td>
@@ -143,7 +175,12 @@ function App() {
                 </td>
                 <td>{e.memo}</td>
                 <td>
-                  <button onClick={() => handleDelete(e.id)}>削除</button>
+                  <button
+                    className="delete"
+                    onClick={() => handleDelete(e.id)}
+                  >
+                    削除
+                  </button>
                 </td>
               </tr>
             ))}
